@@ -2,6 +2,7 @@ package dns
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -216,6 +217,14 @@ type Question struct {
 	Qclass uint16
 }
 
+func (q *Question) MarshalJSON() ([]byte, error) {
+	v := make(map[string]string)
+	v["name"] = sprintName(q.Name)
+	v["type"] = Type(q.Qtype).String()
+	v["class"] = Class(q.Qclass).String()
+	return json.Marshal(v)
+}
+
 func (q *Question) String() (s string) {
 	// prefix with ; (as in dig)
 	s = ";" + sprintName(q.Name) + "\t"
@@ -234,20 +243,22 @@ type ANY struct {
 	// Does not have any rdata
 }
 
-func (rr *ANY) Header() *RR_Header { return &rr.Hdr }
-func (rr *ANY) copy() RR           { return &ANY{*rr.Hdr.copyHeader()} }
-func (rr *ANY) String() string     { return rr.Hdr.String() }
-func (rr *ANY) len() int           { return rr.Hdr.len() }
+func (rr *ANY) Header() *RR_Header           { return &rr.Hdr }
+func (rr *ANY) copy() RR                     { return &ANY{*rr.Hdr.copyHeader()} }
+func (rr *ANY) MarshalJSON() ([]byte, error) { return rr.Hdr.MarshalJSON() }
+func (rr *ANY) String() string               { return rr.Hdr.String() }
+func (rr *ANY) len() int                     { return rr.Hdr.len() }
 
 type CNAME struct {
 	Hdr    RR_Header
 	Target string `dns:"cdomain-name"`
 }
 
-func (rr *CNAME) Header() *RR_Header { return &rr.Hdr }
-func (rr *CNAME) copy() RR           { return &CNAME{*rr.Hdr.copyHeader(), sprintName(rr.Target)} }
-func (rr *CNAME) String() string     { return rr.Hdr.String() + rr.Target }
-func (rr *CNAME) len() int           { return rr.Hdr.len() + len(rr.Target) + 1 }
+func (rr *CNAME) Header() *RR_Header           { return &rr.Hdr }
+func (rr *CNAME) copy() RR                     { return &CNAME{*rr.Hdr.copyHeader(), sprintName(rr.Target)} }
+func (rr *CNAME) MarshalJSON() ([]byte, error) { return rr.Hdr.MarshalJSONWithValue(rr.Target) }
+func (rr *CNAME) String() string               { return rr.Hdr.String() + rr.Target }
+func (rr *CNAME) len() int                     { return rr.Hdr.len() + len(rr.Target) + 1 }
 
 type HINFO struct {
 	Hdr RR_Header
@@ -405,6 +416,9 @@ func (rr *NS) Header() *RR_Header { return &rr.Hdr }
 func (rr *NS) len() int           { l := len(rr.Ns) + 1; return rr.Hdr.len() + l }
 func (rr *NS) copy() RR           { return &NS{*rr.Hdr.copyHeader(), rr.Ns} }
 
+func (rr *NS) MarshalJSON() ([]byte, error) {
+	return rr.Hdr.MarshalJSONWithValue(sprintName(rr.Ns))
+}
 func (rr *NS) String() string {
 	return rr.Hdr.String() + sprintName(rr.Ns)
 }
@@ -418,6 +432,7 @@ func (rr *PTR) Header() *RR_Header { return &rr.Hdr }
 func (rr *PTR) copy() RR           { return &PTR{*rr.Hdr.copyHeader(), rr.Ptr} }
 func (rr *PTR) len() int           { l := len(rr.Ptr) + 1; return rr.Hdr.len() + l }
 
+func (rr *PTR) MarshalJSON() ([]byte, error) { return rr.Hdr.MarshalJSONWithValue(sprintName(rr.Ptr)) }
 func (rr *PTR) String() string {
 	return rr.Hdr.String() + sprintName(rr.Ptr)
 }
@@ -452,6 +467,14 @@ func (rr *SOA) copy() RR {
 	return &SOA{*rr.Hdr.copyHeader(), rr.Ns, rr.Mbox, rr.Serial, rr.Refresh, rr.Retry, rr.Expire, rr.Minttl}
 }
 
+func (rr *SOA) MarshalJSON() ([]byte, error) {
+	return rr.Hdr.MarshalJSONWithValue(sprintName(rr.Ns) + " " + sprintName(rr.Mbox) +
+		" " + strconv.FormatInt(int64(rr.Serial), 10) +
+		" " + strconv.FormatInt(int64(rr.Refresh), 10) +
+		" " + strconv.FormatInt(int64(rr.Retry), 10) +
+		" " + strconv.FormatInt(int64(rr.Expire), 10) +
+		" " + strconv.FormatInt(int64(rr.Minttl), 10))
+}
 func (rr *SOA) String() string {
 	return rr.Hdr.String() + sprintName(rr.Ns) + " " + sprintName(rr.Mbox) +
 		" " + strconv.FormatInt(int64(rr.Serial), 10) +
@@ -479,7 +502,8 @@ func (rr *TXT) copy() RR {
 	return &TXT{*rr.Hdr.copyHeader(), cp}
 }
 
-func (rr *TXT) String() string { return rr.Hdr.String() + sprintTxt(rr.Txt) }
+func (rr *TXT) MarshalJSON() ([]byte, error) { return rr.Hdr.MarshalJSONWithValue(sprintTxt(rr.Txt)) }
+func (rr *TXT) String() string               { return rr.Hdr.String() + sprintTxt(rr.Txt) }
 
 func sprintName(s string) string {
 	src := []byte(s)
@@ -761,6 +785,7 @@ func (rr *A) Header() *RR_Header { return &rr.Hdr }
 func (rr *A) copy() RR           { return &A{*rr.Hdr.copyHeader(), copyIP(rr.A)} }
 func (rr *A) len() int           { return rr.Hdr.len() + net.IPv4len }
 
+func (rr *A) MarshalJSON() ([]byte, error) { return rr.Hdr.MarshalJSONWithValue(rr.A) }
 func (rr *A) String() string {
 	if rr.A == nil {
 		return rr.Hdr.String()
@@ -777,6 +802,7 @@ func (rr *AAAA) Header() *RR_Header { return &rr.Hdr }
 func (rr *AAAA) copy() RR           { return &AAAA{*rr.Hdr.copyHeader(), copyIP(rr.AAAA)} }
 func (rr *AAAA) len() int           { return rr.Hdr.len() + net.IPv6len }
 
+func (rr *AAAA) MarshalJSON() ([]byte, error) { return rr.Hdr.MarshalJSONWithValue(rr.AAAA) }
 func (rr *AAAA) String() string {
 	if rr.AAAA == nil {
 		return rr.Hdr.String()
@@ -793,6 +819,9 @@ type PX struct {
 
 func (rr *PX) Header() *RR_Header { return &rr.Hdr }
 func (rr *PX) copy() RR           { return &PX{*rr.Hdr.copyHeader(), rr.Preference, rr.Map822, rr.Mapx400} }
+func (rr *PX) MarshalJSON() ([]byte, error) {
+	return rr.Hdr.MarshalJSONWithValue(strconv.Itoa(int(rr.Preference)) + " " + sprintName(rr.Map822) + " " + sprintName(rr.Mapx400))
+}
 func (rr *PX) String() string {
 	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + sprintName(rr.Map822) + " " + sprintName(rr.Mapx400)
 }
@@ -809,6 +838,9 @@ func (rr *GPOS) Header() *RR_Header { return &rr.Hdr }
 func (rr *GPOS) copy() RR           { return &GPOS{*rr.Hdr.copyHeader(), rr.Longitude, rr.Latitude, rr.Altitude} }
 func (rr *GPOS) len() int {
 	return rr.Hdr.len() + len(rr.Longitude) + len(rr.Latitude) + len(rr.Altitude) + 3
+}
+func (rr *GPOS) MarshalJSON() ([]byte, error) {
+	return rr.Hdr.MarshalJSONWithValue(rr.Longitude + " " + rr.Latitude + " " + rr.Altitude)
 }
 func (rr *GPOS) String() string {
 	return rr.Hdr.String() + rr.Longitude + " " + rr.Latitude + " " + rr.Altitude
