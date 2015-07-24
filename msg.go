@@ -69,27 +69,27 @@ var Id func() uint16 = id
 
 // MsgHdr is a a manually-unpacked version of (id, bits).
 type MsgHdr struct {
-	Id                 uint16
-	Response           bool
-	Opcode             int
-	Authoritative      bool
-	Truncated          bool
-	RecursionDesired   bool
-	RecursionAvailable bool
-	Zero               bool
-	AuthenticatedData  bool
-	CheckingDisabled   bool
-	Rcode              int
+	Id                 uint16 `json:"id"`
+	Response           bool   `json:"response"`
+	Opcode             int    `json:"opcode"`
+	Authoritative      bool   `json:"authoritative"`
+	Truncated          bool   `json:"truncated"`
+	RecursionDesired   bool   `json:"recursion_desired"`
+	RecursionAvailable bool   `json:"recursion_available"`
+	Zero               bool   `json:"zero"`
+	AuthenticatedData  bool   `json:"authenticated"`
+	CheckingDisabled   bool   `json:"checking_disabled"`
+	Rcode              int    `json:"rcode"`
 }
 
 // Msg contains the layout of a DNS message.
 type Msg struct {
 	MsgHdr
-	Compress bool       `json:"-"` // If true, the message will be compressed when converted to wire format. This not part of the official DNS packet format.
-	Question []Question // Holds the RR(s) of the question section.
-	Answer   []RR       // Holds the RR(s) of the answer section.
-	Ns       []RR       // Holds the RR(s) of the authority section.
-	Extra    []RR       // Holds the RR(s) of the additional section.
+	Compress bool       `json:"-"`          // If true, the message will be compressed when converted to wire format. This not part of the official DNS packet format.
+	Question []Question `json:"question"`   // Holds the RR(s) of the question section.
+	Answer   []RR       `json:"answer"`     // Holds the RR(s) of the answer section.
+	Ns       []RR       `json:"authority"`  // Holds the RR(s) of the authority section.
+	Extra    []RR       `json:"additional"` // Holds the RR(s) of the additional section.
 }
 
 // TypeToString is a map of strings for each RR wire type.
