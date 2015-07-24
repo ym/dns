@@ -3,6 +3,7 @@ package dns
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -79,6 +80,13 @@ func (h *RR_Header) getMapInterface() map[string]interface{} {
 func (h *RR_Header) MarshalJSONWithValue(value interface{}) ([]byte, error) {
 	v := h.getMapInterface()
 	v["value"] = value
+
+	return json.Marshal(v)
+}
+
+func (h *RR_Header) MarshalJSONWithStringValue(value string) ([]byte, error) {
+	v := h.getMapInterface()
+	v["value"] = strings.TrimPrefix(value, h.String())
 
 	return json.Marshal(v)
 }
