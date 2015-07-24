@@ -1,6 +1,9 @@
 package dns
 
-import "strconv"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 const (
 	year68 = 1 << 31 // For RFC1982 (Serial Arithmetic) calculations in 32 bits.
@@ -61,6 +64,27 @@ func (h *RR_Header) copyHeader() *RR_Header {
 	r.Ttl = h.Ttl
 	r.Rdlength = h.Rdlength
 	return r
+}
+
+func (h *RR_Header) getMapInterface() map[string]interface{} {
+	v := make(map[string]interface{})
+	v["name"] = sprintName(h.Name)
+	v["type"] = Type(h.Rrtype).String()
+	v["class"] = Class(h.Class).String()
+	v["ttl"] = strconv.FormatInt(int64(h.Ttl), 10)
+	v["length"] = h.Rdlength
+	return v
+}
+
+func (h *RR_Header) MarshalJSONWithValue(value interface{}) ([]byte, error) {
+	v := h.getMapInterface()
+	v["value"] = value
+
+	return json.Marshal(v)
+}
+
+func (h *RR_Header) MarshalJSON() ([]byte, error) {
+	return json.Marshal(h.getMapInterface())
 }
 
 func (h *RR_Header) String() string {
